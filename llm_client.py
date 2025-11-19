@@ -14,28 +14,29 @@ except Exception:
     Groq = None
 
 
-def get_groq_client() -> Optional[object]:
+def get_groq_client():
     """
-    Return an initialized Groq client or None if not available.
-    Reads API key from environment variable or Streamlit secrets.
+    Initialize Groq client using Streamlit secrets (primary)
+    or environment variables (fallback).
     """
 
-    # First try environment variable
-    api_key = st.secrets["GROQ_API_KEY"]
+    # --- Try Streamlit secrets ---
+    st = None
+    try:
+        import streamlit as st
+        api_key = st.secrets.get("GROQ_API_KEY", None)
+    except Exception:
+        api_key = None
 
-    # If running inside Streamlit, fallback to secrets
+    # --- Fallback to environment variable ---
     if not api_key:
-        try:
-            import streamlit as st  # type: ignore
-            api_key = st.secrets.get("GROQ_API_KEY") if hasattr(st, "secrets") else None
-        except Exception:
-            pass
+        api_key = os.getenv("GROQ_API_KEY")
 
-    # If Groq SDK not installed OR no key available → return None
+    # --- No client or no key ---
     if Groq is None or not api_key:
         return None
 
-    # Initialize Groq client
+    # --- Create Groq client ---
     try:
         return Groq(api_key=api_key)
     except Exception:
