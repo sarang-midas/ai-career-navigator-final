@@ -21,7 +21,7 @@ def get_groq_client() -> Optional[object]:
     """
 
     # First try environment variable
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = st.secrets("GROQ_API_KEY")
 
     # If running inside Streamlit, fallback to secrets
     if not api_key:
