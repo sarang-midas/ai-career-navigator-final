@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+.venv/
+venv/
+
+# Local env files (do not commit secrets)
+.env
+.env.*
+
+# Streamlit secrets (do not commit)
+.streamlit/secrets.toml
+
+# IDE files
+.vscode/
+.idea/
+.env
+
+
+__pycache__/
+*.pyc
+venv/
+env/
+.idea/
+.vscode/
+.DS_Store
+logs/

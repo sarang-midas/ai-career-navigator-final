@@ -1,63 +1,85 @@
-from llm_client import get_openai_client
+"""
+Resume improvement helper using Groq ONLY.
+Provides:
+- improve_resume(): main resume enhancer (Groq → fallback)
+- _offline_resume_tips(): deterministic fallback when LLM unavailable
+"""
+
+from llm_client import get_groq_client
 
 
+# -----------------------------
+# 🔹 Fallback (Offline Mode)
+# -----------------------------
 def _offline_resume_tips(resume_text: str, target_role: str) -> str:
-    """Return simple, deterministic resume improvement tips when no LLM is available."""
-    tips = []
+    """Return simple, deterministic resume tips when no Groq model is available."""
     text = (resume_text or "").lower()
-    tips.append("## Offline resume tips (no OpenAI key available)")
-    tips.append("- Use strong action verbs (e.g., 'Implemented', 'Led', 'Reduced').")
-    tips.append("- Quantify achievements where possible (e.g., 'improved accuracy by 12%').")
-    tips.append("- Keep bullets short and results-focused.")
+    tips = [
+        "## Offline Resume Tips (LLM not available)",
+        "- Use strong action verbs (Implemented, Designed, Automated, Delivered).",
+        "- Quantify achievements (e.g., 'improved accuracy by 15%').",
+        "- Keep bullets short and results-focused.",
+        "- Place skills + summary at the top – ATS prefers structured format.",
+    ]
+
+    # Add missing keywords for the target role
     role_words = [w for w in (target_role or "").lower().split() if w]
     missing = [w for w in role_words if w not in text]
     if missing:
-        tips.append(f"- Add role keywords: {', '.join(missing)}")
+        tips.append(f"- Add keywords for this role: {', '.join(missing)}")
     else:
-        tips.append("- Resume contains target-role keywords — good.")
-    tips.append("- Put key skills and projects near the top; keep to one page for entry-level.")
+        tips.append("- Good: Resume already includes target role keywords.")
+
+    tips.append("- Keep resume within one page for entry-level roles.")
+
     return "\n".join(tips)
 
 
+# -----------------------------
+# 🔹 Main Function (Groq Only)
+# -----------------------------
 def improve_resume(resume_text: str, target_role: str = "Data Analyst") -> str:
-    """Improve resume using OpenAI when available; otherwise provide offline tips.
-
-    This function is safe to import even when OPENAI_API_KEY is not set.
     """
-    client = get_openai_client()
+    Improve resume using Groq LLM.
+    If Groq API not available → return offline fallback tips.
+    """
+    client = get_groq_client()
     if client is None:
         return _offline_resume_tips(resume_text, target_role)
 
     prompt = f"""
-You are an ATS resume expert.
-Improve the following resume for the role: {target_role}.
-1) Give an ATS optimization checklist.
-2) Rewrite the summary, skills, and 2 sample bullet points with strong verbs + metrics.
-3) Suggest keywords and a clean one-page layout.
-Resume text:
+You are an ATS resume optimization expert.
+
+Improve the following resume for the role: **{target_role}**.
+
+### Your Tasks:
+1. Provide an ATS optimization checklist.
+2. Rewrite:
+   - Resume summary
+   - Skills section
+   - Two bullet points (strong action verbs + metrics)
+3. Suggest important keywords for this role.
+4. Provide a clean, one-page resume structure.
+
+### Resume:
 ---
 {resume_text}
 ---
-Format output in markdown.
+
+Format everything in clean markdown.
 """
+
     try:
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "system", "content": "Be precise, practical, and recruiter-friendly."},
-                      {"role": "user", "content": prompt}],
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": "You are a professional ATS resume reviewer."},
+                {"role": "user", "content": prompt},
+            ],
             temperature=0.3,
         )
-        # handle response shape defensively
-        if resp and getattr(resp, "choices", None):
-            choice = resp.choices[0]
-            if hasattr(choice, "message") and isinstance(choice.message, dict):
-                return choice.message.get("content", "").strip()
-            try:
-                return choice.message.content.strip()
-            except Exception:
-                pass
-        return "(No content returned from OpenAI)"
+
+        return response.choices[0].message.content.strip()
+
     except Exception:
         return _offline_resume_tips(resume_text, target_role)
-        return _offline_resume_tips(resume_text, target_role)
-
